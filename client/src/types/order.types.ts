@@ -41,3 +41,22 @@ export interface ApiError {
   message: string;
   statusCode?: number;
 }
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface PaginatedOrdersResponse {
+  items: Order[];
+  meta: PaginationMeta;
+}
+
+export interface OrdersQueryParams {
+  page: number;
+  status?: OrderStatus;
+}

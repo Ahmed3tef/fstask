@@ -1,41 +1,44 @@
 import { apiClient } from '@/lib/api-client';
 import type {
-  Order,
   CancelOrderRequest,
   CancelOrderResponse,
+  PaginatedOrdersResponse,
+  OrdersQueryParams,
 } from '@/types/order.types';
 
 /**
- * Orders API service
- * Encapsulates all order-related HTTP requests
+ * Orders API Service
+ * All order-related API calls
  */
-export const ordersService = {
-  /**
-   * Fetches all orders with customer and store information
-   * GET /orders
-   */
-  async fetchOrders(): Promise<Order[]> {
-    const response = await apiClient.get<Order[]>('/orders');
-    return response.data;
-  },
 
-  /**
-   * Cancels an order with optional refund
-   * DELETE /orders/:id
-   * 
-   * @param orderId - The order ID to cancel
-   * @param refund - Whether to process a refund
-   */
-  async cancelOrder(
-    orderId: number,
-    refund: boolean,
-  ): Promise<CancelOrderResponse> {
-    const response = await apiClient.delete<CancelOrderResponse>(
-      `/orders/${orderId}`,
-      {
-        data: { refund } satisfies CancelOrderRequest,
-      },
-    );
-    return response.data;
-  },
+const BASE_URL = '/orders';
+
+/**
+ * Get paginated orders with optional filtering
+ * GET /orders?page=X&status=Y
+ */
+async function all(params: OrdersQueryParams) {
+  return apiClient.get<PaginatedOrdersResponse>(BASE_URL, {
+    params: {
+      page: params.page,
+      ...(params.status && { status: params.status }),
+    },
+  }).then(res => res.data);
+}
+
+/**
+ * Cancel an order with optional refund
+ * DELETE /orders/:id
+ */
+async function cancel(id: number, refund: boolean) {
+  return apiClient.delete<CancelOrderResponse>(`${BASE_URL}/${id}`, {
+    data: { refund } satisfies CancelOrderRequest,
+  }).then(res => res.data);
+}
+
+export const ordersApi = {
+  all,
+  cancel,
 };
+
+export default ordersApi;
