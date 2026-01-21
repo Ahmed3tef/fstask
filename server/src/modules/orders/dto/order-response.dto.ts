@@ -1,4 +1,5 @@
 import { OrderStatus } from '@/database/entities/order-status.enum';
+import { OrderEntity } from '@/database/entities/order.entity';
 
 // DTOs for clean API responses with nested relations
 // These decouple our internal entities from external API contracts
@@ -28,7 +29,7 @@ export class OrderResponseDto {
    * Maps OrderEntity to OrderResponseDto
    * Ensures consistent response shape and hides internal fields
    */
-  static fromEntity(order: any): OrderResponseDto {
+  static fromEntity(order: OrderEntity): OrderResponseDto {
     return {
       id: order.id,
       amount_cents: order.amount_cents,

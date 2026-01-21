@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { MainModule } from './main.module';
 import { ConfigService } from '@nestjs/config';
 
@@ -6,9 +7,17 @@ async function bootstrap() {
   const app = await NestFactory.create(MainModule);
   const configService = app.get(ConfigService);
 
-  // Enable CORS for frontend (Next.js dev server on port 3000)
+  // Enable global validation pipe for automatic DTO validation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, // Automatically transform payloads to DTO instances
+      whitelist: true, // Strip properties that don't have decorators
+    }),
+  );
+
+  // Enable CORS for frontend (Next.js dev server on port 3000 by default)
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000',
     credentials: true,
   });
 

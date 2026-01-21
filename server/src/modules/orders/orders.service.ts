@@ -3,11 +3,20 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, FindOptionsWhere } from 'typeorm';
 import { OrderEntity } from '@/database/entities/order.entity';
 import { StoreEntity } from '@/database/entities/store.entity';
-import { OrderStatus, CANCELLABLE_STATUSES } from '@/database/entities/order-status.enum';
+import {
+  OrderStatus,
+  CANCELLABLE_STATUSES,
+} from '@/database/entities/order-status.enum';
 import { InjectRepository } from '@nestjs/typeorm';
+import {
+  ListOrdersQueryDto,
+  PaginatedOrdersResponseDto,
+  OrderResponseDto,
+} from './dto';
+import { PaginationHelper } from '@/common/helpers';
 
 @Injectable()
 export class OrdersService {
@@ -20,26 +29,48 @@ export class OrdersService {
   ) {}
 
   /**
-   * Fetches all orders with customer and store relations
-   * Returns orders with nested customer and store objects
+   * Fetches paginated orders with optional status filtering
+   * Returns orders with nested customer and store objects plus pagination metadata
+   * 
+   * @param query - Query parameters for pagination and filtering
+   * @returns Paginated response with items and meta
    */
-  async listOrders(): Promise<OrderEntity[]> {
-    return this.ordersRepository.find({
-      relations: ['customer', 'store'],
-      order: { created_at: 'DESC' },
-    });
+  async listOrders(
+    query: ListOrdersQueryDto,
+  ): Promise<PaginatedOrdersResponseDto> {
+    // Build where clause dynamically based on status filter
+    const where: FindOptionsWhere<OrderEntity> = {};
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    // Use pagination helper for cleaner, reusable pagination logic
+    const { items: orders, meta } = await PaginationHelper.paginate(
+      this.ordersRepository,
+      {
+        where,
+        relations: ['customer', 'store'],
+        order: { created_at: 'DESC' },
+      },
+      { page: query.page, limit: 10 },
+    );
+
+    // Map entities to DTOs
+    const items = orders.map((order) => OrderResponseDto.fromEntity(order));
+
+    return { items, meta };
   }
 
   /**
    * Cancels an order with optional refund processing
-   * 
+   *
    * Business Rules:
    * 1. Order must exist
    * 2. Order must be in 'PENDING_PAYMENT' or 'CONFIRMED' status
    * 3. Cannot cancel an already CANCELLED order
    * 4. If refund=true: store must have sufficient balance
    * 5. Balance deduction and order update happen atomically
-   * 
+   *
    * @param id - Order ID to cancel
    * @param refund - Whether to process a refund (deduct from store balance)
    * @returns Updated order with relations
@@ -121,6 +152,12 @@ export class OrdersService {
       relations: ['customer', 'store'],
     });
 
-    return updatedOrder!;
+    if (!updatedOrder) {
+      throw new NotFoundException(
+        `Order with ID ${id} not found after update`,
+      );
+    }
+
+    return updatedOrder;
   }
 }
